@@ -50,6 +50,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.iotdb.ainode.utils.AINodeTestUtils.BUILTIN_LTSM_MAP;
 import static org.apache.iotdb.ainode.utils.AINodeTestUtils.BUILTIN_MODEL_MAP;
 import static org.apache.iotdb.ainode.utils.AINodeTestUtils.checkHeader;
 import static org.apache.iotdb.ainode.utils.AINodeTestUtils.checkModelNotOnSpecifiedDevice;
@@ -437,6 +438,27 @@ public class AINodeSharedClusterIT {
   }
 
   // ========== Concurrent forecast tests ==========
+
+  @Test
+  public void largeTimeSeriesModelLoadDevicePlacementTest()
+      throws SQLException, InterruptedException {
+    try (Connection connection = EnvFactory.getEnv().getConnection(BaseEnv.TABLE_SQL_DIALECT);
+        Statement statement = connection.createStatement()) {
+      for (FakeModelInfo modelInfo : BUILTIN_LTSM_MAP.values()) {
+        loadAndUnloadModelOnDevices(statement, modelInfo.getModelId(), "cpu");
+        loadAndUnloadModelOnDevices(statement, modelInfo.getModelId(), "0");
+        loadAndUnloadModelOnDevices(statement, modelInfo.getModelId(), "cpu,0");
+      }
+    }
+  }
+
+  private void loadAndUnloadModelOnDevices(Statement statement, String modelId, String devices)
+      throws SQLException, InterruptedException {
+    statement.execute(String.format("LOAD MODEL %s TO DEVICES '%s'", modelId, devices));
+    checkModelOnSpecifiedDevice(statement, modelId, devices);
+    statement.execute(String.format("UNLOAD MODEL %s FROM DEVICES '%s'", modelId, devices));
+    checkModelNotOnSpecifiedDevice(statement, modelId, devices);
+  }
 
   @Test
   public void concurrentForecastTest() throws SQLException, InterruptedException {
