@@ -1247,7 +1247,13 @@ public class ConfigManager implements IManager {
               "ConsensusManager of target-ConfigNode is not initialized, "
                   + "please make sure the target-ConfigNode has been started successfully.");
     }
-    return getConsensusManager().confirmLeader();
+    TSStatus status = getConsensusManager().confirmLeader();
+    if (status.getCode() == TSStatusCode.SUCCESS_STATUS.getStatusCode()
+        && !getLoadManager().isLoadReady()) {
+      return new TSStatus(TSStatusCode.CONFIG_NODE_LEADER_WARMING_UP.getStatusCode())
+          .setMessage(getLoadManager().getLoadReadyReason());
+    }
+    return status;
   }
 
   @Override
